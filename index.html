@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Says it all — Emotion-Based AI DJ</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet" />
+
+
+  <style>
+    /* ── CSS Variables ─────────────────────────────────────────────── */
+    :root {
+      --bg-dark: #0a0a0f;
+      --card-bg: #12121a;
+      --card-bg2: #0f0f18;
+      --border-color: rgba(255, 255, 255, 0.07);
+      --border-glow: rgba(192, 132, 252, 0.2);
+      --purple: #c084fc;
+      --blue: #38bdf8;
+      --pink: #f472b6;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --white: #f0f0f8;
+      --grey: #6b6b8a;
+      --spotify: #1ed760;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background Blobs ───────────────────────────────────────────── */
+    .bg-blobs {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.15;
+      animation: floatAround 18s ease-in-out infinite alternate;
+    }
+
+    .blob-purple {
+      width: 500px;
+      height: 500px;
+      background: var(--purple);
+      top: -150px;
+      left: -100px;
+    }
+
+    .blob-blue {
+      width: 400px;
+      height: 400px;
+      background: var(--blue);
+      bottom: -100px;
+      right: -80px;
+      animation-delay: -6s;
+    }
+
+    .blob-pink {
+      width: 300px;
+      height: 300px;
+      background: var(--pink);
+      top: 40%;
+      left: 50%;
+      animation-delay: -12s;
+    }
+
+    @keyframes floatAround {
+      from {
+        transform: translate(0, 0) scale(1);
+      }
+
+      to {
+        transform: translate(40px, 30px) scale(1.1);
+      }
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 20px 100px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .tag-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(192, 132, 252, 0.1);
+      border: 1px solid rgba(192, 132, 252, 0.3);
+      border-radius: 999px;
+      padding: 6px 16px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--purple);
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 6vw, 3.8rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, var(--purple) 60%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--grey);
+      font-size: 1rem;
+      font-weight: 300;
+    }
+
+    /* ── Status ─────────────────────────────────────────────────────── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: var(--grey);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--grey);
+      transition: background 0.4s, box-shadow 0.4s;
+    }
+
+    .dot.green {
+      background: #4ade80;
+      box-shadow: 0 0 10px #4ade80;
+    }
+
+    .dot.yellow {
+      background: #fbbf24;
+      box-shadow: 0 0 10px #fbbf24;
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    .dot.red {
+      background: #f87171;
+      box-shadow: 0 0 10px #f87171;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    /* ── Dashboard Strip ────────────────────────────────────────────── */
+    .dashboard {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .dash-card {
+      flex: 1;
+      min-width: 140px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      backdrop-filter: blur(10px);
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+
+    .dash-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(192, 132, 252, 0.3);
+    }
+
+    .dash-icon {
+      font-size: 24px;
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+    }
+
+    .dash-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dash-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--grey);
+      margin-bottom: 2px;
+    }
+
+    .dash-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    /* context selector inside dashboard */
+    .context-btns {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .ctx-btn {
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--grey);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .ctx-btn.active {
+      background: var(--purple);
+      border-color: var(--purple);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(192, 132, 252, 0.3);
+    }
+
+    /* badge row */
+    .badges-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--yellow);
+      animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* ── Grid ───────────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard {
+        flex-direction: column;
+      }
+    }
+
+    /* ── Camera ─────────────────────────────────────────────────────── */
+    .cam-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      overflow: hidden;
+    }
+
+    .cam-box {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #07070d;
+      overflow: hidden;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      display: block;
+    }
+
+    #faceCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+      pointer-events: none;
+    }
+
+    .no-cam {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--grey);
+      font-size: 14px;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: var(--blue);
+      border-style: solid;
+      border-width: 0;
+      opacity: 0.7;
+    }
+
+    .corner.tl {
+      top: 12px;
+      left: 12px;
+      border-top-width: 2px;
+      border-left-width: 2px;
+      border-top-left-radius: 4px;
+    }
+
+    .corner.tr {
+      top: 12px;
+      right: 12px;
+      border-top-width: 2px;
+      border-right-width: 2px;
+      border-top-right-radius: 4px;
+    }
+
+    .corner.bl {
+      bottom: 12px;
+      left: 12px;
+      border-bottom-width: 2px;
+      border-left-width: 2px;
+      border-bottom-left-radius: 4px;
+    }
+
+    .corner.br {
+      bottom: 12px;
+      right: 12px;
+      border-bottom-width: 2px;
+      border-right-width: 2px;
+      border-bottom-right-radius: 4px;
+    }
+
+    .live-label {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 10, 15, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: var(--purple);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.4s;
+      text-align: center;
+    }
+
+    .live-label.show {
+      opacity: 1;
+    }
+
+    .cam-footer {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cam-label-text {
+      font-size: 11px;
+      color: var(--grey);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #f87171;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .live-indicator.show {
+      opacity: 1;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #f87171;
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    .btn-wrap {
+      padding: 0 18px 18px;
+    }
+
+    /* ── Capture Button ─────────────────────────────────────────────── */
+    .capture-btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #a855f7, #3b82f6);
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .capture-btn:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 15px 40px rgba(168, 85, 247, 0.4);
+    }
+
+    .capture-btn:active:not(:disabled) {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .capture-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .shine {
+      position: absolute;
+      top: -50%;
+      left: -60%;
+      width: 40%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.15);
+      transform: skewX(-20deg);
+      transition: left 0.5s;
+    }
+
+    .capture-btn:hover .shine {
+      left: 130%;
+    }
+
+    /* ── Result Card ────────────────────────────────────────────────── */
+    .result-card {
+      background: rgba(18, 18, 26, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 340px;
+    }
+
+    .panel-header {
+      padding: 20px 24px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--purple);
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .idle-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .idle-icon {
+      font-size: 48px;
+      opacity: 0.5;
+    }
+
+    .idle-msg {
+      color: var(--grey);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .scanning-view {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      gap: 18px;
+    }
+
+    .spinner {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      border-top-color: var(--purple);
+      border-right-color: var(--blue);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .scan-msg {
+      color: var(--grey);
+      font-size: 14px;
+    }
+
+    .result-view {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      padding: 22px;
+      gap: 16px;
+    }
+
+    /* ── Emotion Box ────────────────────────────────────────────────── */
+    .emotion-box {
+      text-align: center;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+    }
+
+    .emotion-emoji {
+      font-size: 52px;
+      line-height: 1;
+      margin-bottom: 8px;
+      display: block;
+      animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      from {
+        transform: scale(0.3) rotate(-15deg);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1) rotate(0);
+        opacity: 1;
+      }
+    }
+
+    .emotion-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .confidence-text {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    /* context tag below confidence */
+    .context-tag {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 999px;
+      padding: 2px 10px;
+      color: var(--blue);
+    }
+
+    /* ── Bars ───────────────────────────────────────────────────────── */
+    .bars-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bar-name {
+      font-size: 12px;
+      color: var(--grey);
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .bar-bg {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fg {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.7s cubic-bezier(0.34, 1.1, 0.64, 1);
+    }
+
+    .bar-num {
+      font-size: 11px;
+      color: var(--grey);
+      width: 30px;
+      text-align: right;
+    }
+
+    /* ── Playlist Card ──────────────────────────────────────────────── */
+    .playlist-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 4px;
+    }
+
+    .playlist-heading {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--grey);
+      margin-bottom: 8px;
+    }
+
+    .playlist-genre {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .playlist-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .embed-container {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      min-height: 152px;
+    }
+
+    .open-playlist-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      background: rgba(30, 215, 96, 0.12);
+      border: 1px solid rgba(30, 215, 96, 0.3);
+      color: var(--spotify);
+      transition: opacity 0.2s, transform 0.15s;
+      margin-top: 8px;
+    }
+
+    .open-playlist-btn:hover {
+      opacity: 0.85;
+      transform: translateY(-1px);
+    }
+
+    /* like / dislike buttons */
+    .feedback-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .fb-btn {
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--grey);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .fb-btn:hover {
+      border-color: var(--purple);
+      color: var(--white);
+    }
+
+    .fb-btn.liked {
+      background: rgba(74, 222, 128, 0.15);
+      border-color: #4ade80;
+      color: #4ade80;
+    }
+
+    .fb-btn.disliked {
+      background: rgba(248, 113, 113, 0.15);
+      border-color: #f87171;
+      color: #f87171;
+    }
+
+    /* adaptive mood notice */
+    .adaptive-notice {
+      font-size: 11px;
+      color: var(--blue);
+      background: rgba(56, 189, 248, 0.08);
+      border-radius: 8px;
+      padding: 6px 10px;
+      border: 1px solid rgba(56, 189, 248, 0.15);
+    }
+
+    /* ── Mood History ───────────────────────────────────────────────── */
+    .history-section {
+      margin-top: 28px;
+      display: none;
+    }
+
+    .section-heading {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--grey);
+      margin-bottom: 10px;
+    }
+
+    .history-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      animation: slideIn 0.4s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+
+    /* ── Score Toast ────────────────────────────────────────────────── */
+    .score-toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 200;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 12px 20px;
+      font-size: 13px;
+      color: var(--yellow);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      transform: translateY(-20px);
+      opacity: 0;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .score-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    footer {
+      margin-top: 48px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    footer a {
+      color: var(--purple);
+      text-decoration: none;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(192, 132, 252, 0.3);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="bg-blobs">
+    <div class="blob blob-purple"></div>
+    <div class="blob blob-blue"></div>
+    <div class="blob blob-pink"></div>
+  </div>
+
+  <!-- Score Toast Notification -->
+  <div class="score-toast" id="scoreToast">🎉 +10 Mood Points!</div>
+
+  <div class="wrapper">
+    <header>
+      <div class="tag-badge">🤖 AI-Powered Emotion DJ</div>
+      <h1>Face Says it all</h1>
+      <p class="subtitle">Smart music that adapts to your emotion, habits &amp; context</p>
+    </header>
+
+    <!-- Status -->
+    <div class="status-row">
+      <div class="dot yellow" id="statusDot"></div>
+      <span id="statusMsg">Loading emotion models, please wait...</span>
+    </div>
+
+    <!-- ── Dashboard Strip ─────────────────────────────────────── -->
+    <div class="dashboard">
+      <!-- Streak -->
+      <div class="dash-card">
+        <div class="dash-icon">🔥</div>
+        <div class="dash-info">
+          <span class="dash-label">Streak</span>
+          <span class="dash-value" id="streakVal">0 days</span>
+        </div>
+      </div>
+
+      <!-- Score -->
+      <div class="dash-card">
+        <div class="dash-icon">📊</div>
+        <div class="dash-info">
+          <span class="dash-label">Mood Score</span>
+          <span class="dash-value" id="scoreVal">0 pts</span>
+        </div>
+      </div>
+
+      <!-- Context Selector -->
+      <div class="dash-card" style="flex: 2; min-width: 180px;">
+        <div class="dash-icon">🌍</div>
+        <div class="dash-info">
+          <span class="dash-label">Context</span>
+          <div class="context-btns">
+            <button class="ctx-btn active" data-ctx="home" onclick="setContext('home')">🏠 Home</button>
+            <button class="ctx-btn" data-ctx="gym" onclick="setContext('gym')">🏋️ Gym</button>
+            <button class="ctx-btn" data-ctx="study" onclick="setContext('study')">📚 Study</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Time Context (auto) -->
+      <div class="dash-card">
+        <div class="dash-icon" id="timeIcon">🌙</div>
+        <div class="dash-info">
+          <span class="dash-label">Vibe</span>
+          <span class="dash-value" id="timeVibeVal">Night</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Badges -->
+    <div class="badges-row" id="badgesRow"></div>
+
+    <!-- ── Camera + Result Grid ────────────────────────────────── -->
+    <div class="grid">
+
+      <!-- Left: Camera -->
+      <div class="cam-card">
+        <div class="cam-box">
+          <video id="video" autoplay muted playsinline></video>
+          <canvas id="faceCanvas"></canvas>
+          <div class="no-cam" id="noCamMsg" style="display:none;">
+            <span style="font-size:40px;opacity:0.4;">📷</span>
+            <span>Camera permission denied.<br />Please allow access and refresh.</span>
+          </div>
+          <div class="corner tl"></div>
+          <div class="corner tr"></div>
+          <div class="corner bl"></div>
+          <div class="corner br"></div>
+          <div class="live-label" id="liveLabel">scanning...</div>
+        </div>
+        <div class="cam-footer">
+          <span class="cam-label-text">Camera Feed</span>
+          <div class="live-indicator" id="liveIndicator">
+            <div class="live-dot"></div> LIVE
+          </div>
+        </div>
+        <div class="btn-wrap">
+          <button class="capture-btn" id="captureBtn" disabled onclick="captureNow()">
+            <div class="shine"></div>
+            ✦ Capture My Mood
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Result -->
+      <div class="result-card">
+        <div class="panel-header">Result</div>
+
+        <div class="idle-view" id="idleView">
+          <div class="idle-icon">🎧</div>
+          <p class="idle-msg">
+            Face the camera and press<br />
+            <strong>Capture My Mood</strong><br />
+            to get your AI-personalised playlist.
+          </p>
+        </div>
+
+        <div class="scanning-view" id="scanView">
+          <div class="spinner"></div>
+          <p class="scan-msg">Reading your expression...</p>
+        </div>
+
+        <div class="result-view" id="resultView">
+
+          <!-- Emotion display -->
+          <div class="emotion-box">
+            <span class="emotion-emoji" id="resultEmoji">😐</span>
+            <div class="emotion-name" id="resultName">Neutral</div>
+            <div class="confidence-text" id="resultConfidence">Confidence: —</div>
+            <div class="context-tag" id="contextTag">🏠 Home · Evening</div>
+          </div>
+
+          <!-- Adaptive mood notice -->
+          <div class="adaptive-notice" id="adaptiveNotice" style="display:none;"></div>
+
+          <!-- Probability bars -->
+          <div class="bars-section" id="barsSection"></div>
+
+          <!-- Language Selector (Moved here) -->
+          <div class="lang-selector-row" style="margin-top: 8px;">
+            <div class="playlist-heading" style="margin-bottom: 8px;">Preferred Language</div>
+            <div class="context-btns" id="langBtns">
+              <button class="ctx-btn active" data-lang="mix" onclick="setLanguage('mix')">🌎 Mix</button>
+              <button class="ctx-btn" data-lang="hindi" onclick="setLanguage('hindi')">🇮🇳 Hindi</button>
+              <button class="ctx-btn" data-lang="punjabi" onclick="setLanguage('punjabi')">🚜 Punjabi</button>
+              <button class="ctx-btn" data-lang="english" onclick="setLanguage('english')">🇺🇸 English</button>
+            </div>
+          </div>
+
+          <!-- Playlist card with like/dislike -->
+          <div class="playlist-card">
+            <div class="playlist-heading">🎵 AI Recommendation</div>
+            <div class="playlist-genre" id="playlistGenre">—</div>
+            <div class="playlist-actions">
+              <div id="playlistEmbed" class="embed-container"></div>
+              <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div id="playlistLink"></div>
+                <div class="feedback-btns" id="feedbackBtns" style="display:none;">
+                  <button class="fb-btn" id="likeBtn" onclick="giveFeedback('like')">👍 <span
+                      id="likeCount">0</span></button>
+                  <button class="fb-btn" id="dislikeBtn" onclick="giveFeedback('dislike')">👎 <span
+                      id="dislikeCount">0</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Mood History -->
+    <div class="history-section" id="historySection">
+      <div class="section-heading">Recent Moods</div>
+      <div class="history-chips" id="historyChips"></div>
+    </div>
+
+    <footer style="margin-top: 32px;">
+      Built with <a href="#">Custom Keras Model</a> —
+      Processing happens locally on your machine.
+    </footer>
+  </div>
+
+
+  <!-- ───────────────────────── JAVASCRIPT ───────────────────────────── -->
+  <script>
+    // Auto-detect backend URL:
+    //   • On Render (or any server that serves index.html from the same origin) → same origin /predict
+    //   • Running locally via file:// or a separate dev server → fall back to localhost:5001
+    const API_URL = (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")
+      ? "http://localhost:5001/predict"
+      : (location.origin + "/predict");
+    // For production, change to your deployed server URL (e.g., https://your-app.onrender.com/predict)
+    /* ================================================================
+       MOODIFY AI — Full Logic
+       Sections:
+       1. Mood Data
+       2. User Preferences (localStorage)
+       3. Adaptive Mood Engine
+       4. Context Awareness (time + location type)
+       5. Gamification (streak, score, badges)
+       6. Face Detection (original logic kept intact)
+       7. AI DJ Chatbot (NLP via keyword matching)
+       8. History & UI helpers
+       9. Init
+    ================================================================ */
+
+    /* ─── 1. MOOD DATA ──────────────────────────────────────────── */
+    var moods = {
+      happy: {
+        emoji: "😄", name: "Happy",
+        message: ["Who got my homie smilin like that 😏", "Oye hoye full vibe chal rahi aa 🔥", "Lagda aaj life set aa 😎", "Smile dangerous level te aa 💯", "Bas aise hi haste rehna boss 😄"],
+        color: "#fbbf24", playlist: "Happy Vibes 🎉",
+        spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DWTwbZHrJRIgD?si=b9ca9b2b86c34480"
+      },
+      sad: {
+        emoji: "😢", name: "Sad",
+        message: ["Oo paaji kade hass vi leya karo 😢", "Itna sad kyu ho rahe ho yaar… sab theek ho jayega ❤️", "Dil udaas hai kya… music laga dete hain 🎧", "Tension na lo, sab temporary hai 💙", "Sad hours detected… sending virtual hug 🤗"],
+        color: "#60a5fa", playlist: "Sad Songs 💙",
+        spotifyUrl: "https://open.spotify.com/playlist/1DNOiYqXkwpykr7YxpEmzG?si=YdGhN049Tja8K-uBIQiYqA"
+      },
+      angry: {
+        emoji: "😠", name: "Angry",
+        message: ["Control Uday Control 😤", "Oye hoye gussa control paaji 🔥", "CPU heat ho raha hai, cool down ❄️", "Kisne panga le liya 👀", "Thoda chill maaro boss 🧊"],
+        color: "#f87171", playlist: "Rock & Metal 🤘",
+        spotifyUrl: "https://open.spotify.com/playlist/3SwdC5JTvQHXm6he11YCPK?si=50ecd49afb1c469a"
+      },
+      surprised: {
+        emoji: "😲", name: "Surprised",
+        message: ["Lagda hai lottery nikal gayi 😲", "Oye hoye kya dekh liya 👀", "Plot twist ho gaya 😳", "Shock lag gaya kya ⚡", "Mind = blown 🤯"],
+        color: "#a78bfa", playlist: "Hype & Energetic ⚡",
+        spotifyUrl: "https://open.spotify.com/playlist/7vatYrf39uVaZ8G2cVtEik?si=3c69d32fcfb0471a"
+      },
+      fearful: {
+        emoji: "😨", name: "Nervous / Scared",
+        message: ["Darda kyo hai sengh 😨", "Relax paaji sab ho jayega 👍", "Deep breath lo… tension kam hogi 😌", "First time hai kya? you got this 💪", "Fear ko side rakho, confidence on karo 🔄"],
+        color: "#c084fc", playlist: "Comfort & Calm 🫂",
+        spotifyUrl: "https://open.spotify.com/playlist/7IDVrIljBcxuBdoLNegd56?si=4ff8b8767da94efe"
+      },
+      neutral: {
+        emoji: "😐", name: "Neutral",
+        message: ["Aapse baat karne ka koi matlab hi nahi 😶", "Bas normal mode mein ho 😌", "NPC energy detected 😏", "System stable, koi alert nahi 🟢", "Chill vibe, no drama 👍"],
+        color: "#94a3b8", playlist: "Lo-fi Chill 🎧",
+        spotifyUrl: "https://open.spotify.com/playlist/0w3Hy9uaza7UlfkJEuHsmJ?si=ca92e7f1f3b54ec0"
+      }
+    };
+
+    /* Context-based playlist overrides — maps [context][baseMood] → playlistName + url */
+    var contextOverrides = {
+      gym: {
+        happy: { playlist: "Gym Hype 🏋️", spotifyUrl: "https://open.spotify.com/playlist/7vatYrf39uVaZ8G2cVtEik" },
+        neutral: { playlist: "Workout Beats 🔥", spotifyUrl: "https://open.spotify.com/playlist/3SwdC5JTvQHXm6he11YCPK" },
+        sad: { playlist: "Motivation Gym 💪", spotifyUrl: "https://open.spotify.com/playlist/7vatYrf39uVaZ8G2cVtEik" },
+        angry: { playlist: "Rage Mode Metal 🤘", spotifyUrl: "https://open.spotify.com/playlist/3SwdC5JTvQHXm6he11YCPK" }
+      },
+      study: {
+        happy: { playlist: "Study Lo-fi 📚", spotifyUrl: "https://open.spotify.com/playlist/0w3Hy9uaza7UlfkJEuHsmJ" },
+        neutral: { playlist: "Focus Flow 🧠", spotifyUrl: "https://open.spotify.com/playlist/0w3Hy9uaza7UlfkJEuHsmJ" },
+        sad: { playlist: "Soft Study Vibes 🌧️", spotifyUrl: "https://open.spotify.com/playlist/2sOMIgioNPngXojcOuR4tn" },
+        stressed: { playlist: "Calm Study 🌊", spotifyUrl: "https://open.spotify.com/playlist/7IDVrIljBcxuBdoLNegd56" }
+      }
+    };
+
+    /* Time-of-day vibe mappings */
+    var timeVibes = {
+      morning: { label: "Morning Energy ☀️", icon: "☀️", boost: "happy" },
+      afternoon: { label: "Afternoon Chill 🌤️", icon: "🌤️", boost: "neutral" },
+      evening: { label: "Evening Feels 🌆", icon: "🌆", boost: "neutral" },
+      night: { label: "Night Mode 🌙", icon: "🌙", boost: "sad" }
+    };
+
+    /* Language-based playlist overrides */
+    var languagePlaylists = {
+      hindi: {
+        happy: { playlist: "Hindi Happy Mix 🕺", spotifyUrl: "https://open.spotify.com/playlist/3bQy66sMaRDIUIsS7UQnuO?si=utWPGWPmQHibatyjTJnhGw" },
+        sad: { playlist: "Hindi Sad Melodies 💔", spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DXdFesNN9TzXT?si=HPS1irkhQ7e5ogUpmVOgBA" },
+        angry: { playlist: "Bollywood Energy 🔥", spotifyUrl: "https://open.spotify.com/playlist/5cwtgqs4L1fX8IKoQebfjJ?si=F9Ab0ofOR72_EZgVbH5T9Q" },
+        surprised: { playlist: "Hindi Party Hits ⚡", spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DWX76Z8XDsZzF?si=QfF5I0uKSHyaMtGi2Pr7EQ" },
+        fearful: { playlist: "Hindi Calm Melodies 😌", spotifyUrl: "https://open.spotify.com/playlist/7zNvXEjgmE1110slXAuZie?si=i2yODdJnSLy3vo6lxh9kSg" },
+        neutral: { playlist: "Hindi Lo-fi ☕", spotifyUrl: "https://open.spotify.com/playlist/1QbJym8B3Xb6rpXdk7MBiJ?si=7g1FUq9SQX6f_0vn22-a5A" }
+      },
+      punjabi: {
+        happy: { playlist: "Punjabi Party 🥁", spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DXdKTcyXUUm1i?si=G9P17SBDTlGU3zALiliZEw" },
+        sad: { playlist: "Punjabi Sad Songs 🖤", spotifyUrl: "https://open.spotify.com/playlist/43xmzfgh4RjbbUCs0Tl4uW?si=53Q4nG5BSMCrhCZQ-QfBtw" },
+        angry: { playlist: "Aggressive Punjabi 🔥", spotifyUrl: "https://open.spotify.com/playlist/1tJwjYMfyTS7mWRyD5plt7?si=kWputrHiTkupTswQVhhWTA" },
+        surprised: { playlist: "Punjabi Hits ⚡", spotifyUrl: "https://open.spotify.com/playlist/6QMHjigSzbNcgAHyzj5qCu?si=xWpniDTfS3Oc4s8gRhyMnA" },
+        fearful: { playlist: "Punjabi Soul 🫂", spotifyUrl: "https://open.spotify.com/playlist/4UNRki0DrPhjkHSdWux5kl?si=C0m7fPV4TBK11XgBz7uiuw" },
+        neutral: { playlist: "Punjabi Chill 🌾", spotifyUrl: "https://open.spotify.com/playlist/6NriX38rMu8Wzmt6CbLpmG?si=yrYrOc_dQjClU7oYP24dZQ" }
+      },
+      english: {
+        happy: { playlist: "English Happy Pop ☀️", spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DXdPec7aLTmlC?si=bcxRjKWZRdOwiK9wcx05hw" },
+        sad: { playlist: "English Sad Vibes 🌧️", spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DX7qK8ma5wgG1?si=9FGzEJB5QuGnY3jx9VgB8w" },
+        angry: { playlist: "English Rock Hits 🤘", spotifyUrl: "https://open.spotify.com/playlist/0KPEhXA3O9jHFtpd1Ix5OB?si=pBZ04sU5RgmjeIKObqhdBw" },
+        surprised: { playlist: "English Hype Mix ⚡", spotifyUrl: "https://open.spotify.com/playlist/37i9dQZF1DX4WYpdgoIcn6?si=TCU6TJWqSGuVOAJhUrA2vQ" },
+        fearful: { playlist: "English Calm 😌", spotifyUrl: "https://open.spotify.com/album/4Xn7Bb8dZ1zVdZXKts2nVl?si=IVDkSPRST0KAjkLbi1Lx4w" },
+        neutral: { playlist: "English Lo-fi 🎧", spotifyUrl: "https://open.spotify.com/playlist/7hJfYpKLDQwmeHIPTmNS5y?si=J1nFFVEFSgC2nsRL4rbsAg" }
+      }
+    };
+
+    /* Mood improvement score table: [from → to] gives points */
+    var moodScoreTable = {
+      "sad→happy": 10, "sad→neutral": 5,
+      "angry→neutral": 8, "angry→happy": 10,
+      "fearful→neutral": 6, "fearful→happy": 9,
+      "neutral→happy": 7
+    };
+
+    var barColors = ["#c084fc", "#38bdf8", "#f472b6", "#fbbf24", "#4ade80", "#60a5fa", "#a78bfa"];
+
+
+    /* ─── 2. USER PREFERENCES (localStorage) ────────────────────── */
+    /*
+      prefs structure:  { "happy": { like: 3, dislike: 1 }, ... }
+      history structure: [ { emotion, playlist, timestamp }, ... ]
+      streak structure:  { lastDate: "2025-01-01", count: 3 }
+      score:             number
+    */
+
+    function getPrefs() {
+      try { return JSON.parse(localStorage.getItem("moodify_prefs") || "{}"); } catch (e) { return {}; }
+    }
+    function savePrefs(p) { localStorage.setItem("moodify_prefs", JSON.stringify(p)); }
+
+    function getHistory() {
+      try { return JSON.parse(localStorage.getItem("moodify_history") || "[]"); } catch (e) { return []; }
+    }
+    function saveHistory(h) { localStorage.setItem("moodify_history", JSON.stringify(h)); }
+
+    function getScore() { return parseInt(localStorage.getItem("moodify_score") || "0", 10); }
+    function addScore(pts) {
+      var s = getScore() + pts;
+      localStorage.setItem("moodify_score", s);
+      document.getElementById("scoreVal").textContent = s + " pts";
+      showScoreToast("+" + pts + " Mood Points! 🎉");
+      return s;
+    }
+
+    function getStreak() {
+      try { return JSON.parse(localStorage.getItem("moodify_streak") || '{"lastDate":"","count":0}'); }
+      catch (e) { return { lastDate: "", count: 0 }; }
+    }
+    function updateStreak() {
+      var today = new Date().toDateString();
+      var s = getStreak();
+      if (s.lastDate === today) return s.count;          // already counted today
+      var yesterday = new Date(Date.now() - 86400000).toDateString();
+      s.count = (s.lastDate === yesterday) ? s.count + 1 : 1;
+      s.lastDate = today;
+      localStorage.setItem("moodify_streak", JSON.stringify(s));
+      document.getElementById("streakVal").textContent = s.count + " day" + (s.count !== 1 ? "s" : "");
+      return s.count;
+    }
+
+
+    /* ─── 3. ADAPTIVE MOOD ENGINE ───────────────────────────────── */
+    /*
+      getAdaptiveMood looks at:
+      1. Detected base emotion
+      2. User's like/dislike history (preference weights)
+      3. Current context (gym/study/home)
+      4. Time of day
+      Returns the "best" mood key to recommend
+    */
+    function getAdaptiveMood(baseMood) {
+      var prefs = getPrefs();
+      var time = getTimeContext();
+      var ctx = currentContext;
+      var scores = {};
+
+      // Start with the detected mood getting 100 base weight
+      Object.keys(moods).forEach(function (key) { scores[key] = (key === baseMood) ? 100 : 20; });
+
+      // Add preference weight: (likes - dislikes) * 15
+      Object.keys(prefs).forEach(function (key) {
+        if (scores[key] !== undefined) {
+          var pref = prefs[key];
+          scores[key] += (pref.like - pref.dislike) * 15;
+        }
+      });
+
+      // Time boost: morning → bump happy/energetic
+      if (time === "morning") { scores["happy"] = (scores["happy"] || 0) + 30; }
+      if (time === "night") { scores["sad"] = (scores["sad"] || 0) + 20; scores["fearful"] = (scores["fearful"] || 0) + 10; }
+
+      // Context boost: gym → amplify energetic moods
+      if (ctx === "gym") { scores["angry"] = (scores["angry"] || 0) + 25; scores["happy"] = (scores["happy"] || 0) + 20; }
+      if (ctx === "study") { scores["neutral"] = (scores["neutral"] || 0) + 30; scores["sad"] = (scores["sad"] || 0) + 15; }
+
+      // Find the highest scoring mood
+      var best = baseMood;
+      var bestScore = -Infinity;
+      Object.keys(scores).forEach(function (key) {
+        if (scores[key] > bestScore) { bestScore = scores[key]; best = key; }
+      });
+
+      return { adaptedMood: best, wasAdapted: best !== baseMood, scores: scores };
+    }
+
+
+    /* ─── 4. CONTEXT AWARENESS ──────────────────────────────────── */
+    var currentContext = "home";
+
+    function setContext(ctx) {
+      currentContext = ctx;
+      document.querySelectorAll("[data-ctx]").forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.ctx === ctx);
+      });
+    }
+
+    var currentLanguage = "mix";
+
+    function setLanguage(lang) {
+      currentLanguage = lang;
+      document.querySelectorAll("[data-lang]").forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.lang === lang);
+      });
+
+      // If result is already showing, refresh it to update the playlist
+      if (document.getElementById("resultView").style.display === "flex") {
+        // Re-run display logic if we have stored expressions
+        if (lastExpressions) displayResult(lastExpressions);
+      }
+    }
+
+    function getTimeContext() {
+      var h = new Date().getHours();
+      if (h >= 5 && h < 12) return "morning";
+      if (h >= 12 && h < 17) return "afternoon";
+      if (h >= 17 && h < 21) return "evening";
+      return "night";
+    }
+
+    function updateTimeDisplay() {
+      var t = getTimeContext();
+      var v = timeVibes[t] || timeVibes.night;
+      document.getElementById("timeVibeVal").textContent = v.label;
+      document.getElementById("timeIcon").textContent = v.icon;
+    }
+
+
+    /* ─── 5. GAMIFICATION ───────────────────────────────────────── */
+    var allBadges = [
+      { id: "first", label: "First Scan 🎵", condition: function (h, s, str) { return h.length >= 1; } },
+      { id: "streak3", label: "3-Day Streak 🔥", condition: function (h, s, str) { return str >= 3; } },
+      { id: "streak7", label: "Week Warrior 🏆", condition: function (h, s, str) { return str >= 7; } },
+      { id: "scans10", label: "Consistent Listener 🎧", condition: function (h, s, str) { return h.length >= 10; } },
+      { id: "score50", label: "Mood Master 🧠", condition: function (h, s, str) { return s >= 50; } },
+      { id: "score100", label: "Vibe Legend ✨", condition: function (h, s, str) { return s >= 100; } },
+      { id: "happy5", label: "Happy Soul 😄", condition: function (h, s, str) { return h.filter(function (e) { return e.emotion === "happy"; }).length >= 5; } },
+    ];
+
+    function checkBadges() {
+      var earned = JSON.parse(localStorage.getItem("moodify_badges") || "[]");
+      var history = getHistory();
+      var score = getScore();
+      var streak = getStreak().count;
+      var newOnes = [];
+
+      allBadges.forEach(function (b) {
+        if (!earned.includes(b.id) && b.condition(history, score, streak)) {
+          earned.push(b.id);
+          newOnes.push(b.label);
+        }
+      });
+
+      if (newOnes.length) {
+        localStorage.setItem("moodify_badges", JSON.stringify(earned));
+        showScoreToast("Badge Unlocked: " + newOnes[0] + " 🎉");
+      }
+
+      renderBadges(earned);
+    }
+
+    function renderBadges(earned) {
+      var row = document.getElementById("badgesRow");
+      row.innerHTML = "";
+      allBadges.forEach(function (b) {
+        if (earned.includes(b.id)) {
+          var el = document.createElement("div");
+          el.className = "badge";
+          el.textContent = b.label;
+          row.appendChild(el);
+        }
+      });
+    }
+
+    function loadBadges() {
+      var earned = JSON.parse(localStorage.getItem("moodify_badges") || "[]");
+      renderBadges(earned);
+    }
+
+    function showScoreToast(msg) {
+      var t = document.getElementById("scoreToast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(function () { t.classList.remove("show"); }, 2800);
+    }
+
+
+    /* ─── 6. LIKE / DISLIKE FEEDBACK ────────────────────────────── */
+    var currentFeedbackMood = null;
+
+    function giveFeedback(type) {
+      if (!currentFeedbackMood) return;
+      var prefs = getPrefs();
+      if (!prefs[currentFeedbackMood]) prefs[currentFeedbackMood] = { like: 0, dislike: 0 };
+      prefs[currentFeedbackMood][type]++;
+      savePrefs(prefs);
+
+      // Update button appearance
+      document.getElementById("likeBtn").classList.toggle("liked", type === "like");
+      document.getElementById("dislikeBtn").classList.toggle("disliked", type === "dislike");
+
+      // Update count display
+      document.getElementById("likeCount").textContent = prefs[currentFeedbackMood].like;
+      document.getElementById("dislikeCount").textContent = prefs[currentFeedbackMood].dislike;
+
+      // Small reward for engaging
+      if (type === "like") addScore(2);
+    }
+
+    function loadFeedbackCounts(moodKey) {
+      var prefs = getPrefs();
+      var p = prefs[moodKey] || { like: 0, dislike: 0 };
+      document.getElementById("likeCount").textContent = p.like;
+      document.getElementById("dislikeCount").textContent = p.dislike;
+      document.getElementById("likeBtn").classList.remove("liked");
+      document.getElementById("dislikeBtn").classList.remove("disliked");
+    }
+
+
+    /* ─── 7. FACE DETECTION (original logic preserved) ──────────── */
+    var modelsReady = false;
+    var moodHistory = []; // in-memory for chip display (also saved to localStorage)
+
+    var video = document.getElementById("video");
+    var faceCanvas = document.getElementById("faceCanvas");
+    var captureBtn = document.getElementById("captureBtn");
+    var statusDot = document.getElementById("statusDot");
+    var statusMsg_el = document.getElementById("statusMsg");
+    var liveLabel = document.getElementById("liveLabel");
+    var liveIndicator = document.getElementById("liveIndicator");
+
+
+
+    async function loadModels() {
+      setStatus("yellow", "Connecting to emotion model server...");
+      try {
+        const check = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: "" })
+        });
+        if (!check.ok && check.status !== 0) {
+          throw new Error("Server responded with status " + check.status);
+        }
+        modelsReady = true;
+        setStatus("green", "Model server ready! Starting camera...");
+        startCamera();
+      } catch (err) {
+        // Server not reachable — still start the camera so the UI is usable.
+        // Predictions will fail gracefully with an alert when the user tries.
+        console.warn("Model server not reachable:", err.message);
+        modelsReady = true;
+        setStatus("yellow", "Server offline — camera starting. Predictions need the server running.");
+        startCamera();
+      }
+    }
+
+    async function startCamera() {
+      try {
+        var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } });
+        video.srcObject = stream;
+        video.onloadedmetadata = function () {
+          faceCanvas.width = video.videoWidth;
+          faceCanvas.height = video.videoHeight;
+          captureBtn.disabled = false;
+          liveIndicator.classList.add("show");
+          setStatus("green", "Camera ready — press the button to detect your mood!");
+          startLiveLoop();
+        };
+      } catch (err) {
+        document.getElementById("noCamMsg").style.display = "flex";
+        video.style.display = "none";
+        setStatus("red", "Camera access denied.");
+      }
+    }
+
+    var isPredicting = false;
+
+    function startLiveLoop() {
+      setInterval(async function () {
+        if (!modelsReady || video.paused || isPredicting) return;
+        isPredicting = true;
+
+        try {
+          const frameB64 = captureFrame(0.5); // Lower quality for live loop
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: frameB64 })
+          });
+          const data = await response.json();
+
+          var ctx = faceCanvas.getContext("2d");
+          ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+
+          if (data.emotion && data.box) {
+            drawFaceCorners(ctx, data.box, data.scores);
+            var moodInfo = moods[data.emotion] || moods.neutral;
+            var randomMsg = moodInfo.message[Math.floor(Math.random() * moodInfo.message.length)];
+            liveLabel.innerHTML =
+              '<div style="text-align:center;font-weight:bold;">' + moodInfo.emoji + " " + moodInfo.name + '</div>' +
+              '<div style="text-align:center;font-size:11px;opacity:0.8;">' + randomMsg + '</div>';
+            liveLabel.classList.add("show");
+          } else {
+            liveLabel.textContent = "No face detected";
+            liveLabel.classList.add("show");
+          }
+        } catch (e) {
+          console.warn("Live detection error:", e);
+        } finally {
+          isPredicting = false;
+        }
+      }, 800);
+    }
+
+    function captureFrame(quality = 0.8) {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      // Mirror because video is mirrored
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", quality);
+    }
+
+    function drawFaceCorners(ctx, box, expressions) {
+      var top = getTopMood(expressions);
+      var color = (moods[top.name] || moods.neutral).color;
+      ctx.save();
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.shadowColor = color; ctx.shadowBlur = 12;
+      var x = box.x, y = box.y, w = box.w, h = box.h, s = 20;
+      ctx.beginPath();
+      ctx.moveTo(x, y + s); ctx.lineTo(x, y); ctx.lineTo(x + s, y);
+      ctx.moveTo(x + w - s, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + s);
+      ctx.moveTo(x, y + h - s); ctx.lineTo(x, y + h); ctx.lineTo(x + s, y + h);
+      ctx.moveTo(x + w - s, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - s);
+      ctx.stroke(); ctx.restore();
+    }
+
+    async function captureNow() {
+      if (!modelsReady || isPredicting) return;
+      isPredicting = true;
+      captureBtn.disabled = true;
+      showPanel("scanning");
+
+      try {
+        const frameB64 = captureFrame(0.9);
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: frameB64 })
+        });
+        const data = await response.json();
+
+        if (data.error === "no_face") {
+          showPanel("idle"); captureBtn.disabled = false;
+          alert("No face detected! Make sure your face is visible and lighting is decent.");
+          return;
+        }
+
+        // Convert scores back to 0-1 for displayResult
+        const expressions = {};
+        for (const [key, val] of Object.entries(data.scores)) {
+          expressions[key] = val / 100;
+        }
+
+        displayResult(expressions);
+
+        var baseMood = data.emotion;
+        saveToHistory(baseMood);
+        updateStreak();
+        checkBadges();
+      } catch (err) {
+        console.error("Capture failed:", err);
+        showPanel("idle");
+        alert("Prediction failed. The server may be waking up — please wait a moment and try again.");
+      } finally {
+        isPredicting = false;
+        captureBtn.disabled = false;
+      }
+    }
+
+
+    /* ─── 8. DISPLAY RESULT WITH AI ADAPTIVE LOGIC ──────────────── */
+    var lastExpressions = null;
+
+    function displayResult(expressions) {
+      lastExpressions = expressions;
+      var top = getTopMood(expressions);
+      var baseMood = top.name;
+      var pct = Math.round(top.score * 100);
+
+      // Run adaptive mood engine
+      var adapted = getAdaptiveMood(baseMood);
+      var finalMood = adapted.adaptedMood;
+      var mood = moods[finalMood] || moods.neutral;
+
+      // Check for context override (gym/study take priority over base)
+      var ctxOver = contextOverrides[currentContext] && contextOverrides[currentContext][finalMood];
+
+      // Check for language override
+      var langOver = languagePlaylists[currentLanguage] && languagePlaylists[currentLanguage][finalMood];
+
+      var playlist = ctxOver ? ctxOver.playlist : (langOver ? langOver.playlist : mood.playlist);
+      var spotUrl = ctxOver ? ctxOver.spotifyUrl : (langOver ? langOver.spotifyUrl : mood.spotifyUrl);
+
+      // Update emotion display (show the RAW detected emotion visually)
+      var rawMood = moods[baseMood] || moods.neutral;
+      document.getElementById("resultEmoji").textContent = rawMood.emoji;
+      document.getElementById("resultName").textContent = rawMood.name;
+      document.getElementById("resultName").style.color = rawMood.color;
+      document.getElementById("resultConfidence").textContent = "Confidence: " + pct + "%";
+
+      // Context + time tag
+      var timeLabel = timeVibes[getTimeContext()].label;
+      var ctxEmoji = { home: "🏠", gym: "🏋️", study: "📚" }[currentContext] || "🌍";
+      var langLabel = currentLanguage === "mix" ? "Mix" : currentLanguage.charAt(0).toUpperCase() + currentLanguage.slice(1);
+      document.getElementById("contextTag").textContent = ctxEmoji + " " + currentContext.charAt(0).toUpperCase() + currentContext.slice(1) + " · " + langLabel + " · " + timeLabel;
+
+      // Adaptive notice
+      var notice = document.getElementById("adaptiveNotice");
+      if (adapted.wasAdapted) {
+        notice.style.display = "block";
+        notice.textContent = "🧠 AI adapted: You often like " + (moods[finalMood] || { name: finalMood }).name + " music, so I'm recommending that instead!";
+      } else {
+        notice.style.display = "none";
+      }
+
+      // Playlist card
+      document.getElementById("playlistGenre").textContent = playlist;
+
+      // Convert Spotify URL to Embed URL
+      var embedUrl = spotUrl.replace("/playlist/", "/embed/playlist/");
+
+      document.getElementById("playlistEmbed").innerHTML =
+        '<iframe style="border-radius:12px" src="' + embedUrl + '" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>';
+
+      document.getElementById("playlistLink").innerHTML =
+        '<a class="open-playlist-btn" href="' + spotUrl + '" target="_blank">♫ Open App</a>';
+
+      // Like/dislike buttons
+      currentFeedbackMood = finalMood;
+      document.getElementById("feedbackBtns").style.display = "flex";
+      loadFeedbackCounts(finalMood);
+
+      // Bars
+      var barsEl = document.getElementById("barsSection");
+      barsEl.innerHTML = "";
+      var sorted = Object.entries(expressions).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 5);
+      sorted.forEach(function (entry, i) {
+        var key = entry[0]; var val = entry[1]; var pctNum = Math.round(val * 100);
+        var color = (moods[key] || {}).color || barColors[i % barColors.length];
+        var label = (moods[key] || {}).name || key;
+        var emoji = (moods[key] || {}).emoji || "";
+        var row = document.createElement("div");
+        row.className = "bar-item";
+        row.innerHTML =
+          '<span class="bar-name">' + emoji + " " + label + '</span>' +
+          '<div class="bar-bg"><div class="bar-fg" style="width:0%;background:' + color + '" data-w="' + pctNum + '"></div></div>' +
+          '<span class="bar-num">' + pctNum + '%</span>';
+        barsEl.appendChild(row);
+      });
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          document.querySelectorAll(".bar-fg").forEach(function (bar) { bar.style.width = bar.dataset.w + "%"; });
+        });
+      });
+
+      // Mood improvement score
+      var history = getHistory();
+      var lastMood = history.length > 1 ? history[1].emotion : null;
+      if (lastMood) {
+        var key = lastMood + "→" + baseMood;
+        var pts = moodScoreTable[key] || 0;
+        if (pts > 0) addScore(pts);
+      }
+
+      showPanel("result");
+    }
+
+
+    /* ─── HISTORY ────────────────────────────────────────────────── */
+    function saveToHistory(moodKey) {
+      // In-memory chips
+      moodHistory.unshift(moodKey);
+      if (moodHistory.length > 6) moodHistory.pop();
+
+      // Persistent history
+      var hist = getHistory();
+      hist.unshift({ emotion: moodKey, playlist: (moods[moodKey] || moods.neutral).playlist, timestamp: Date.now() });
+      if (hist.length > 50) hist.pop();
+      saveHistory(hist);
+
+      // Render chips
+      var section = document.getElementById("historySection");
+      var chips = document.getElementById("historyChips");
+      section.style.display = "block";
+      chips.innerHTML = "";
+      moodHistory.forEach(function (key) {
+        var m = moods[key] || moods.neutral;
+        var chip = document.createElement("div");
+        chip.className = "chip";
+        chip.style.borderColor = m.color + "55";
+        chip.innerHTML = m.emoji + ' <span style="color:' + m.color + '">' + m.name + '</span>';
+        chips.appendChild(chip);
+      });
+    }
+
+
+
+    /* ─── HELPERS ────────────────────────────────────────────────── */
+    function getTopMood(expressions) {
+      var best = { name: "neutral", score: 0 };
+      for (var key in expressions) {
+        if (expressions[key] > best.score) { best.name = key; best.score = expressions[key]; }
+      }
+      return best;
+    }
+
+    function showPanel(which) {
+      document.getElementById("idleView").style.display = which === "idle" ? "flex" : "none";
+      document.getElementById("scanView").style.display = which === "scanning" ? "flex" : "none";
+      document.getElementById("resultView").style.display = which === "result" ? "flex" : "none";
+    }
+
+    function setStatus(color, msg) {
+      document.getElementById("statusDot").className = "dot " + color;
+      document.getElementById("statusMsg").textContent = msg;
+    }
+
+
+    /* ─── INIT ───────────────────────────────────────────────────── */
+    window.addEventListener("load", function () {
+      // Load persistent data
+      document.getElementById("scoreVal").textContent = getScore() + " pts";
+      var streak = getStreak();
+      document.getElementById("streakVal").textContent = streak.count + " day" + (streak.count !== 1 ? "s" : "");
+      updateTimeDisplay();
+      loadBadges();
+
+      // Pre-load in-memory history chips from localStorage
+      var hist = getHistory().slice(0, 6);
+      if (hist.length) {
+        moodHistory = hist.map(function (e) { return e.emotion; });
+        var section = document.getElementById("historySection");
+        var chips = document.getElementById("historyChips");
+        section.style.display = "block";
+        moodHistory.forEach(function (key) {
+          var m = moods[key] || moods.neutral;
+          var chip = document.createElement("div");
+          chip.className = "chip";
+          chip.style.borderColor = m.color + "55";
+          chip.innerHTML = m.emoji + ' <span style="color:' + m.color + '">' + m.name + '</span>';
+          chips.appendChild(chip);
+        });
+      }
+
+      loadModels();
+    });
+  </script>
+</body>
+
+</html>
