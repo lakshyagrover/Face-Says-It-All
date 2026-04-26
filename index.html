@@ -1075,7 +1075,7 @@
     //   • On Render (or any server that serves index.html from the same origin) → same origin /predict
     //   • Running locally via file:// or a separate dev server → fall back to localhost:5001
     const API_URL = (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")
-      ? "http://localhost:5001/predict"
+      ? "http://localhost:5002/predict"
       : (location.origin + "/predict");
     // For production, change to your deployed server URL (e.g., https://your-app.onrender.com/predict)
     /* ================================================================
@@ -1431,27 +1431,32 @@
 
 
     async function loadModels() {
-      setStatus("yellow", "Connecting to emotion model server...");
-      try {
-        const check = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: "" })
-        });
-        if (!check.ok && check.status !== 0) {
-          throw new Error("Server responded with status " + check.status);
+      setStatus("yellow", "Waiting for emotion model server...");
+
+      // Retry connecting to the server every 2 seconds until it responds
+      const tryConnect = async () => {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          const check = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: "" }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          // Server is up!
+          modelsReady = true;
+          setStatus("green", "Model server connected! Starting camera...");
+          startCamera();
+        } catch (err) {
+          // Not up yet — retry after 2 seconds
+          setStatus("yellow", "Waiting for model server on port 5001... (run predict.py)");
+          setTimeout(tryConnect, 2000);
         }
-        modelsReady = true;
-        setStatus("green", "Model server ready! Starting camera...");
-        startCamera();
-      } catch (err) {
-        // Server not reachable — still start the camera so the UI is usable.
-        // Predictions will fail gracefully with an alert when the user tries.
-        console.warn("Model server not reachable:", err.message);
-        modelsReady = true;
-        setStatus("yellow", "Server offline — camera starting. Predictions need the server running.");
-        startCamera();
-      }
+      };
+
+      tryConnect();
     }
 
     async function startCamera() {
@@ -1514,8 +1519,13 @@
 
     function captureFrame(quality = 0.8) {
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
+      // Downsample to max 320px wide before sending — reduces payload & server RAM
+      const MAX = 320;
+      const srcW = video.videoWidth || 640;
+      const srcH = video.videoHeight || 480;
+      const scale = Math.min(1, MAX / srcW);
+      canvas.width  = Math.round(srcW * scale);
+      canvas.height = Math.round(srcH * scale);
       const ctx = canvas.getContext("2d");
       // Mirror because video is mirrored
       ctx.translate(canvas.width, 0);
