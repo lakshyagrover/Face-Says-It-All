@@ -1071,12 +1071,11 @@
 
   <!-- ───────────────────────── JAVASCRIPT ───────────────────────────── -->
   <script>
-    // Auto-detect backend URL:
-    //   • On Render (or any server that serves index.html from the same origin) → same origin /predict
-    //   • Running locally via file:// or a separate dev server → fall back to localhost:5001
-    const API_URL = (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")
-      ? "http://localhost:5002/predict"
-      : (location.origin + "/predict");
+    // Always point to the Flask server — both locally and on Render.
+    // Open index.html via http://localhost:5001 (not file://) for local dev.
+    const API_URL = location.protocol === "file:"
+      ? "http://localhost:5001/predict"   // file:// fallback (may have CORS issues)
+      : (location.origin + "/predict");   // works for both localhost:5001 and Render
     // For production, change to your deployed server URL (e.g., https://your-app.onrender.com/predict)
     /* ================================================================
        MOODIFY AI — Full Logic

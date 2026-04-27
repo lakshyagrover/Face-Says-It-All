@@ -9,8 +9,8 @@ import cv2
 from PIL import Image
 import requests
 
-MODEL_PATH = "emotion_model.h5"
-MODEL_URL  = "https://huggingface.co/lakshyagrover/emotion_model/resolve/main/emotion_model.h5"
+MODEL_PATH = "final_model.h5"
+MODEL_URL  = "https://huggingface.co/lakshyagrover/emotion_model/resolve/main/final_model.h5"
 
 CASCADE_PATH = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 INPUT_SIZE   = 224
@@ -50,7 +50,7 @@ cascade = cv2.CascadeClassifier(CASCADE_PATH)
 
 # Warm up model
 print("[startup] Warming up...", flush=True)
-model.predict(np.zeros((1, INPUT_SIZE, INPUT_SIZE, 3), dtype=np.float32), verbose=0)
+model(np.zeros((1, INPUT_SIZE, INPUT_SIZE, 3), dtype=np.float32), training=False)
 
 print(f"[startup] Ready  -->  http://0.0.0.0:{os.environ.get('PORT', 5001)}", flush=True)
 
@@ -113,7 +113,7 @@ def predict():
         dtype=np.float32
     ) / 255.0
 
-    preds = model.predict(np.expand_dims(arr, 0), verbose=0)[0]
+    preds = model(np.expand_dims(arr, 0), training=False).numpy()[0]
     top_i = int(np.argmax(preds))
 
     return jsonify({
